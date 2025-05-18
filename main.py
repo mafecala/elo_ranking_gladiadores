@@ -413,6 +413,83 @@ def restaurar_backup_json():
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo restaurar el backup:\n{e}")
 
+def exportar_a_excel():
+    # Importar pandas y asegurarnos que sea el primero que se ejecute en esta función
+    try:
+        import pandas as pd
+    except ImportError:
+        messagebox.showerror("Error", "Se requiere la biblioteca pandas. Instálala con 'pip install pandas openpyxl'")
+        return
+    
+    # Solicitar ubicación donde guardar el archivo
+    ruta = filedialog.asksaveasfilename(
+        defaultextension=".xlsx", 
+        filetypes=[("Archivo Excel", "*.xlsx")]
+    )
+    
+    if not ruta:  # El usuario canceló la operación
+        return
+    
+    try:
+        # Crear un objeto ExcelWriter para escribir en múltiples hojas
+        with pd.ExcelWriter(ruta, engine='openpyxl') as writer:
+            # Exportar datos de jugadores
+            jugadores_data = []
+            for nombre, info in datos['jugadores'].items():
+                jugadores_data.append({
+                    'Nombre': nombre,
+                    'ELO': info['elo'],
+                    'Armas': ', '.join(info['armas'])
+                })
+            
+            if jugadores_data:
+                df_jugadores = pd.DataFrame(jugadores_data)
+                df_jugadores = df_jugadores.sort_values('ELO', ascending=False)
+                df_jugadores.to_excel(writer, sheet_name='Jugadores', index=False)
+            
+            # Exportar datos de equipos
+            equipos_data = []
+            for nombre, info in datos['equipos'].items():
+                equipos_data.append({
+                    'Nombre': nombre,
+                    'ELO': info['elo'],
+                    'Miembros': ', '.join(info['miembros'])
+                })
+            
+            if equipos_data:
+                df_equipos = pd.DataFrame(equipos_data)
+                df_equipos = df_equipos.sort_values('ELO', ascending=False)
+                df_equipos.to_excel(writer, sheet_name='Equipos', index=False)
+            
+            # Exportar historial de enfrentamientos
+            historial_data = []
+            for i, entrada in enumerate(datos['historial']):
+                fila = {
+                    'N°': i+1,
+                    'Tipo': entrada['tipo'],
+                    'Entidad 1': entrada['entidad1'],
+                    'Entidad 2': entrada['entidad2'],
+                    'Ganador': entrada['ganador']
+                }
+                
+                # Agregar información de armas si es un enfrentamiento entre jugadores
+                if entrada['tipo'] == 'Jugador':
+                    fila['Arma 1'] = entrada.get('arma1', '')
+                    fila['Arma 2'] = entrada.get('arma2', '')
+                
+                historial_data.append(fila)
+            
+            if historial_data:
+                df_historial = pd.DataFrame(historial_data)
+                df_historial.to_excel(writer, sheet_name='Historial', index=False)
+        
+        messagebox.showinfo("Éxito", f"Datos exportados correctamente a:\n{ruta}")
+    
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudieron exportar los datos:\n{str(e)}")
+
+btn_exportar_excel = ttk.Button(frame_enfrentamientos, text="Exportar a Excel", command=exportar_a_excel)
+btn_exportar_excel.grid(row=9, column=0, columnspan=2, pady=10)
 btn_borrar_enfrentamiento = ttk.Button(frame_enfrentamientos, text="Borrar Enfrentamiento", command=borrar_enfrentamiento)
 btn_borrar_enfrentamiento.grid(row=6, column=0, columnspan=2, pady=5)
 
@@ -421,5 +498,8 @@ btn_backup.grid(row=7, column=0, columnspan=2, pady=10)
 
 btn_restaurar = ttk.Button(frame_enfrentamientos, text="Restaurar Backup", command=restaurar_backup_json)
 btn_restaurar.grid(row=8, column=0, columnspan=2, pady=5)
+
+btn_exportar_excel = ttk.Button(frame_enfrentamientos, text="Exportar a Excel", command=exportar_a_excel)
+btn_exportar_excel.grid(row=9, column=0, columnspan=2, pady=10)
 
 ventana.mainloop()
