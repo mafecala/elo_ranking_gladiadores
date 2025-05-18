@@ -1,0 +1,383 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import json
+import os
+import math
+
+DATA_FILE = "datos_ranking.json"
+
+def cargar_datos():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, 'r') as f:
+            return json.load(f)
+    return {"jugadores": {}, "equipos": {}, "historial": []}
+
+def guardar_datos():
+    global datos
+    with open(DATA_FILE, 'w') as f:
+        json.dump(datos, f, indent=4)
+
+def calcular_elo(elo1, elo2, resultado):
+    K = 32
+    expectativa = 1 / (1 + 10 ** ((elo2 - elo1) / 400))
+    nuevo_elo1 = elo1 + K * (resultado - expectativa)
+    return round(nuevo_elo1)
+
+datos = cargar_datos()
+
+ventana = tk.Tk()
+ventana.title("Ranking de Jugadores y Equipos")
+ventana.geometry("1000x700")
+
+pestanas = ttk.Notebook(ventana)
+pestanas.pack(fill='both', expand=True)
+
+# ======================= PESTAÑA JUGADORES =============================
+frame_jugadores = ttk.Frame(pestanas)
+pestanas.add(frame_jugadores, text="Jugadores")
+
+entry_nombre = ttk.Entry(frame_jugadores)
+entry_arma = ttk.Entry(frame_jugadores)
+
+btn_borrar_jugador = ttk.Button(frame_jugadores, text="Borrar Jugador")
+btn_editar_jugador = ttk.Button(frame_jugadores, text="Editar Jugador")
+
+lista_jugadores = tk.Listbox(frame_jugadores, width=50)
+lista_jugadores.grid(row=3, column=0, columnspan=2, pady=10)
+
+def actualizar_lista_jugadores():
+    lista_jugadores.delete(0, tk.END)
+    for nombre, info in sorted(datos['jugadores'].items(), key=lambda item: item[1]['elo'], reverse=True):
+        armas = ', '.join(info['armas'])
+        lista_jugadores.insert(tk.END, f"{nombre} - ELO: {info['elo']} - Armas: {armas}")
+
+def crear_jugador():
+    nombre = entry_nombre.get()
+    armas = [a.strip() for a in entry_arma.get().split(',') if a.strip()]
+    if nombre and armas:
+        if nombre in datos['jugadores']:
+            messagebox.showerror("Error", "Jugador ya existe")
+            return
+        datos['jugadores'][nombre] = {"elo": 1000, "armas": armas}
+        guardar_datos()
+        actualizar_lista_jugadores()
+        actualizar_lista_jugadores_equipo()
+        actualizar_comboboxes()
+        entry_nombre.delete(0, tk.END)
+        entry_arma.delete(0, tk.END)
+    else:
+        messagebox.showwarning("Advertencia", "Completa todos los campos")
+
+def borrar_jugador():
+    seleccion = lista_jugadores.curselection()
+    if not seleccion:
+        return
+    nombre = lista_jugadores.get(seleccion[0]).split(" - ")[0]
+    if messagebox.askyesno("Confirmar", f"¿Eliminar al jugador '{nombre}'?"):
+        datos['jugadores'].pop(nombre, None)
+        guardar_datos()
+        actualizar_lista_jugadores()
+        actualizar_lista_jugadores_equipo()
+        actualizar_comboboxes()
+
+def editar_jugador():
+    seleccion = lista_jugadores.curselection()
+    if not seleccion:
+        return
+    nombre = lista_jugadores.get(seleccion[0]).split(" - ")[0]
+    nuevo_nombre = entry_nombre.get()
+    nuevas_armas = [a.strip() for a in entry_arma.get().split(',') if a.strip()]
+    if nuevo_nombre and nuevas_armas:
+        jugador = datos['jugadores'].pop(nombre)
+        jugador['armas'] = nuevas_armas
+        datos['jugadores'][nuevo_nombre] = jugador
+        guardar_datos()
+        actualizar_lista_jugadores()
+        actualizar_lista_jugadores_equipo()
+        actualizar_comboboxes()
+        entry_nombre.delete(0, tk.END)
+        entry_arma.delete(0, tk.END)
+    else:
+        messagebox.showwarning("Advertencia", "Completa todos los campos")
+
+btn_crear_jugador = ttk.Button(frame_jugadores, text="Crear Jugador", command=crear_jugador)
+btn_crear_jugador.grid(row=2, column=0, columnspan=2, pady=10)
+
+btn_editar_jugador.config(command=editar_jugador)
+btn_editar_jugador.grid(row=4, column=0, pady=5)
+
+btn_borrar_jugador.config(command=borrar_jugador)
+btn_borrar_jugador.grid(row=4, column=1, pady=5)
+
+entry_nombre.grid(row=0, column=1)
+entry_arma.grid(row=1, column=1)
+ttk.Label(frame_jugadores, text="Nombre:").grid(row=0, column=0)
+ttk.Label(frame_jugadores, text="Armas (separadas por coma):").grid(row=1, column=0)
+
+actualizar_lista_jugadores()
+
+# ======================= PESTAÑA EQUIPOS =============================
+frame_equipos = ttk.Frame(pestanas)
+pestanas.add(frame_equipos, text="Equipos")
+
+entry_equipo = ttk.Entry(frame_equipos)
+ttk.Label(frame_equipos, text="Nombre del equipo:").grid(row=0, column=0)
+entry_equipo.grid(row=0, column=1)
+
+lista_jugadores_equipo = tk.Listbox(frame_equipos, selectmode=tk.MULTIPLE, width=40, height=10)
+lista_jugadores_equipo.grid(row=1, column=0, columnspan=2, pady=10)
+
+lista_equipos = tk.Listbox(frame_equipos, width=50)
+lista_equipos.grid(row=3, column=0, columnspan=2, pady=10)
+
+btn_borrar_equipo = ttk.Button(frame_equipos, text="Borrar Equipo")
+btn_editar_equipo = ttk.Button(frame_equipos, text="Editar Equipo")
+
+def actualizar_lista_jugadores_equipo():
+    lista_jugadores_equipo.delete(0, tk.END)
+    for nombre in sorted(datos['jugadores'], key=lambda n: datos['jugadores'][n]['elo'], reverse=True):
+        lista_jugadores_equipo.insert(tk.END, nombre)
+
+def actualizar_lista_equipos():
+    lista_equipos.delete(0, tk.END)
+    for nombre, info in sorted(datos['equipos'].items(), key=lambda item: item[1]['elo'], reverse=True):
+        lista_equipos.insert(tk.END, f"{nombre} - ELO: {info['elo']} - Miembros: {', '.join(info['miembros'])}")
+
+def crear_equipo():
+    nombre_equipo = entry_equipo.get()
+    indices = lista_jugadores_equipo.curselection()
+    miembros = [lista_jugadores_equipo.get(i) for i in indices]
+    if nombre_equipo and miembros:
+        if nombre_equipo in datos['equipos']:
+            messagebox.showerror("Error", "Equipo ya existe")
+            return
+        datos['equipos'][nombre_equipo] = {"elo": 1000, "miembros": miembros}
+        guardar_datos()
+        actualizar_lista_equipos()
+        actualizar_comboboxes()
+        entry_equipo.delete(0, tk.END)
+    else:
+        messagebox.showwarning("Advertencia", "Completa todos los campos y selecciona jugadores")
+
+def borrar_equipo():
+    seleccion = lista_equipos.curselection()
+    if not seleccion:
+        return
+    nombre = lista_equipos.get(seleccion[0]).split(" - ")[0]
+    if messagebox.askyesno("Confirmar", f"¿Eliminar el equipo '{nombre}'?"):
+        datos['equipos'].pop(nombre, None)
+        guardar_datos()
+        actualizar_lista_equipos()
+        actualizar_comboboxes()
+
+def editar_equipo():
+    seleccion = lista_equipos.curselection()
+    if not seleccion:
+        return
+    nombre = lista_equipos.get(seleccion[0]).split(" - ")[0]
+    nuevo_nombre = entry_equipo.get()
+    indices = lista_jugadores_equipo.curselection()
+    nuevos_miembros = [lista_jugadores_equipo.get(i) for i in indices]
+    if nuevo_nombre and nuevos_miembros:
+        equipo = datos['equipos'].pop(nombre)
+        equipo['miembros'] = nuevos_miembros
+        datos['equipos'][nuevo_nombre] = equipo
+        guardar_datos()
+        actualizar_lista_equipos()
+        actualizar_comboboxes()
+        entry_equipo.delete(0, tk.END)
+    else:
+        messagebox.showwarning("Advertencia", "Completa todos los campos y selecciona jugadores")
+
+btn_crear_equipo = ttk.Button(frame_equipos, text="Crear Equipo", command=crear_equipo)
+btn_crear_equipo.grid(row=2, column=0, columnspan=2, pady=10)
+
+btn_editar_equipo.config(command=editar_equipo)
+btn_editar_equipo.grid(row=4, column=0, pady=5)
+
+btn_borrar_equipo.config(command=borrar_equipo)
+btn_borrar_equipo.grid(row=4, column=1, pady=5)
+
+actualizar_lista_jugadores_equipo()
+actualizar_lista_equipos()
+
+# ======================= PESTAÑA ENFRENTAMIENTOS =============================
+frame_enfrentamientos = ttk.Frame(pestanas)
+pestanas.add(frame_enfrentamientos, text="Enfrentamientos")
+
+modo_var = tk.StringVar(value="Jugador")
+ttk.Radiobutton(frame_enfrentamientos, text="Jugador vs Jugador", variable=modo_var, value="Jugador").grid(row=0, column=0)
+ttk.Radiobutton(frame_enfrentamientos, text="Equipo vs Equipo", variable=modo_var, value="Equipo").grid(row=0, column=1)
+
+combo_1 = ttk.Combobox(frame_enfrentamientos)
+combo_2 = ttk.Combobox(frame_enfrentamientos)
+combo_1.grid(row=1, column=0, padx=10, pady=10)
+combo_2.grid(row=1, column=1, padx=10, pady=10)
+
+arma_1 = ttk.Combobox(frame_enfrentamientos)
+arma_2 = ttk.Combobox(frame_enfrentamientos)
+arma_1.grid(row=2, column=0)
+arma_2.grid(row=2, column=1)
+
+def actualizar_armas(*args):
+    if modo_var.get() == "Jugador":
+        j1 = combo_1.get()
+        j2 = combo_2.get()
+        arma_1['values'] = datos['jugadores'].get(j1, {}).get('armas', [])
+        arma_2['values'] = datos['jugadores'].get(j2, {}).get('armas', [])
+    else:
+        arma_1.grid_remove()
+        arma_2.grid_remove()
+
+combo_1.bind("<<ComboboxSelected>>", actualizar_armas)
+combo_2.bind("<<ComboboxSelected>>", actualizar_armas)
+
+modo_var.trace_add('write', lambda *args: actualizar_comboboxes())
+
+combo_ganador = ttk.Combobox(frame_enfrentamientos)
+ttk.Label(frame_enfrentamientos, text="Ganador:").grid(row=3, column=0)
+combo_ganador.grid(row=3, column=1)
+
+def actualizar_comboboxes():
+    tipo = modo_var.get()
+    if tipo == "Jugador":
+        opciones = list(datos['jugadores'].keys())
+        arma_1.grid()  # Mostrar armas
+        arma_2.grid()
+    else:
+        opciones = list(datos['equipos'].keys())
+        arma_1.grid_remove()  # Ocultar armas
+        arma_2.grid_remove()
+
+    combo_1['values'] = opciones
+    combo_2['values'] = opciones
+    combo_ganador['values'] = opciones
+
+    combo_1.set("")
+    combo_2.set("")
+    combo_ganador.set("")
+
+    if tipo == "Jugador":
+        arma_1.set("")
+        arma_2.set("")
+        arma_1['values'] = []
+        arma_2['values'] = []
+
+
+actualizar_comboboxes()
+
+btn_registrar = ttk.Button(frame_enfrentamientos, text="Registrar Enfrentamiento")
+btn_registrar.grid(row=4, column=0, columnspan=2, pady=10)
+
+lista_historial = tk.Listbox(frame_enfrentamientos, width=100)
+lista_historial.grid(row=5, column=0, columnspan=2, pady=10)
+
+btn_borrar_enfrentamiento = ttk.Button(frame_enfrentamientos, text="Borrar Enfrentamiento")
+btn_borrar_enfrentamiento.grid(row=6, column=0, columnspan=2, pady=5)
+
+def registrar_enfrentamiento():
+    tipo = modo_var.get()
+    entidad1 = combo_1.get()
+    entidad2 = combo_2.get()
+    ganador = combo_ganador.get()
+    arma1 = arma_1.get() if tipo == "Jugador" else None
+    arma2 = arma_2.get() if tipo == "Jugador" else None
+
+    if not entidad1 or not entidad2 or not ganador:
+        messagebox.showwarning("Advertencia", "Completa todos los campos")
+        return
+    if entidad1 == entidad2:
+        messagebox.showerror("Error", "No pueden enfrentarse la misma entidad")
+        return
+
+    resultado = 1 if ganador == entidad1 else 0
+    if tipo == "Jugador":
+        if not arma1 or not arma2:
+            messagebox.showwarning("Advertencia", "Selecciona armas usadas por cada jugador")
+            return
+        elo1, elo2 = datos['jugadores'][entidad1]['elo'], datos['jugadores'][entidad2]['elo']
+        datos['jugadores'][entidad1]['elo'] = calcular_elo(elo1, elo2, resultado)
+        datos['jugadores'][entidad2]['elo'] = calcular_elo(elo2, elo1, 1 - resultado)
+    else:
+        elo1, elo2 = datos['equipos'][entidad1]['elo'], datos['equipos'][entidad2]['elo']
+        datos['equipos'][entidad1]['elo'] = calcular_elo(elo1, elo2, resultado)
+        datos['equipos'][entidad2]['elo'] = calcular_elo(elo2, elo1, 1 - resultado)
+
+    datos['historial'].append({
+        "tipo": tipo,
+        "entidad1": entidad1,
+        "arma1": arma1,
+        "entidad2": entidad2,
+        "arma2": arma2,
+        "ganador": ganador
+    })
+    guardar_datos()
+    actualizar_lista_jugadores()
+    actualizar_lista_equipos()
+    actualizar_comboboxes()
+    actualizar_historial()
+    messagebox.showinfo("Éxito", "Enfrentamiento registrado")
+
+btn_registrar.config(command=registrar_enfrentamiento)
+
+def actualizar_historial():
+    lista_historial.delete(0, tk.END)
+    for i, entrada in enumerate(datos['historial']):
+        tipo = entrada['tipo']
+        ent1, ent2 = entrada['entidad1'], entrada['entidad2']
+        arma1, arma2 = entrada.get('arma1', ''), entrada.get('arma2', '')
+        ganador = entrada['ganador']
+        detalle_armas = f" ({arma1} vs {arma2})" if tipo == "Jugador" else ""
+        lista_historial.insert(tk.END, f"{i+1}. {tipo}: {ent1} vs {ent2}{detalle_armas} → Ganador: {ganador}")
+
+actualizar_historial()
+
+def recalcular_elos():
+    # Reiniciar ELOs de jugadores y equipos
+    for j in datos['jugadores']:
+        datos['jugadores'][j]['elo'] = 1000
+    for e in datos['equipos']:
+        datos['equipos'][e]['elo'] = 1000
+
+    # Reaplicar todos los enfrentamientos del historial
+    for entrada in datos['historial']:
+        tipo = entrada['tipo']
+        entidad1 = entrada['entidad1']
+        entidad2 = entrada['entidad2']
+        ganador = entrada['ganador']
+
+        if tipo == "Jugador":
+            resultado = 1 if ganador == entidad1 else 0
+            elo1 = datos['jugadores'][entidad1]['elo']
+            elo2 = datos['jugadores'][entidad2]['elo']
+            datos['jugadores'][entidad1]['elo'] = calcular_elo(elo1, elo2, resultado)
+            datos['jugadores'][entidad2]['elo'] = calcular_elo(elo2, elo1, 1 - resultado)
+        else:
+            resultado = 1 if ganador == entidad1 else 0
+            elo1 = datos['equipos'][entidad1]['elo']
+            elo2 = datos['equipos'][entidad2]['elo']
+            datos['equipos'][entidad1]['elo'] = calcular_elo(elo1, elo2, resultado)
+            datos['equipos'][entidad2]['elo'] = calcular_elo(elo2, elo1, 1 - resultado)
+
+def borrar_enfrentamiento():
+    seleccion = lista_historial.curselection()
+    if not seleccion:
+        messagebox.showwarning("Advertencia", "Selecciona un enfrentamiento para borrar")
+        return
+
+    indice = seleccion[0]
+    if messagebox.askyesno("Confirmar", "¿Eliminar este enfrentamiento del historial?"):
+        datos['historial'].pop(indice)
+        recalcular_elos()
+        guardar_datos()
+        actualizar_lista_jugadores()
+        actualizar_lista_equipos()
+        actualizar_comboboxes()
+        actualizar_historial()
+
+
+btn_borrar_enfrentamiento = ttk.Button(frame_enfrentamientos, text="Borrar Enfrentamiento", command=borrar_enfrentamiento)
+btn_borrar_enfrentamiento.grid(row=6, column=0, columnspan=2, pady=5)
+
+
+ventana.mainloop()
