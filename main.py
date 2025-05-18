@@ -11,6 +11,7 @@ def cargar_datos():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
+    actualizar_interfaz()
     return {"jugadores": {}, "equipos": {}, "historial": []}
 
 def guardar_datos():
@@ -64,6 +65,7 @@ def crear_jugador():
         actualizar_lista_jugadores()
         actualizar_lista_jugadores_equipo()
         actualizar_comboboxes()
+        actualizar_interfaz()
         entry_nombre.delete(0, tk.END)
         entry_arma.delete(0, tk.END)
     else:
@@ -78,6 +80,7 @@ def borrar_jugador():
         datos['jugadores'].pop(nombre, None)
         guardar_datos()
         actualizar_lista_jugadores()
+        actualizar_interfaz()
         actualizar_lista_jugadores_equipo()
         actualizar_comboboxes()
 
@@ -95,6 +98,7 @@ def editar_jugador():
         guardar_datos()
         actualizar_lista_jugadores()
         actualizar_lista_jugadores_equipo()
+        actualizar_interfaz()
         actualizar_comboboxes()
         entry_nombre.delete(0, tk.END)
         entry_arma.delete(0, tk.END)
@@ -366,6 +370,7 @@ def actualizar_interfaz():
     actualizar_lista_equipos()
     actualizar_comboboxes()
     actualizar_historial()
+    actualizar_lista_torneo()
 
 def borrar_enfrentamiento():
     seleccion = lista_historial.curselection()
@@ -393,6 +398,10 @@ def hacer_backup_json():
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo crear el backup:\n{str(e)}")
 
+def guardar_datos_json():
+    with open("datos_ranking.json", "w", encoding="utf-8") as f:
+        json.dump(datos, f, ensure_ascii=False, indent=4)
+
 def restaurar_backup_json():
     ruta_archivo = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Archivo JSON", "*.json")])
     if not ruta_archivo:
@@ -409,10 +418,13 @@ def restaurar_backup_json():
         datos.clear()
         datos.update(nuevos_datos)
 
+        guardar_datos_json()  # <<< Esta línea asegura la persistencia en disco
+
         messagebox.showinfo("Éxito", "Datos restaurados correctamente.")
         actualizar_interfaz()
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo restaurar el backup:\n{e}")
+
 
 def exportar_a_excel():
     # Importar pandas y asegurarnos que sea el primero que se ejecute en esta función
