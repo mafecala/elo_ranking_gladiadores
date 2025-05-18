@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import json
 import os
 import math
@@ -359,6 +359,13 @@ def recalcular_elos():
             datos['equipos'][entidad1]['elo'] = calcular_elo(elo1, elo2, resultado)
             datos['equipos'][entidad2]['elo'] = calcular_elo(elo2, elo1, 1 - resultado)
 
+def actualizar_interfaz():
+    actualizar_lista_jugadores()
+    actualizar_lista_jugadores_equipo()
+    actualizar_lista_equipos()
+    actualizar_comboboxes()
+    actualizar_historial()
+
 def borrar_enfrentamiento():
     seleccion = lista_historial.curselection()
     if not seleccion:
@@ -375,9 +382,44 @@ def borrar_enfrentamiento():
         actualizar_comboboxes()
         actualizar_historial()
 
+def hacer_backup_json():
+    ruta = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("Archivo JSON", "*.json")])
+    if ruta:
+        try:
+            with open(ruta, "w", encoding="utf-8") as f:
+                json.dump(datos, f, indent=4, ensure_ascii=False)
+            messagebox.showinfo("Backup", f"Backup guardado exitosamente:\n{ruta}")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo crear el backup:\n{str(e)}")
+
+def restaurar_backup_json():
+    ruta_archivo = filedialog.askopenfilename(defaultextension=".json", filetypes=[("Archivo JSON", "*.json")])
+    if not ruta_archivo:
+        return
+
+    try:
+        with open(ruta_archivo, "r", encoding="utf-8") as f:
+            nuevos_datos = json.load(f)
+
+        # Validar que las claves principales existan para evitar errores simples
+        if not all(k in nuevos_datos for k in ("jugadores", "equipos", "historial")):
+            raise ValueError("El archivo JSON no tiene la estructura esperada.")
+
+        datos.clear()
+        datos.update(nuevos_datos)
+
+        messagebox.showinfo("Éxito", "Datos restaurados correctamente.")
+        actualizar_interfaz()
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudo restaurar el backup:\n{e}")
 
 btn_borrar_enfrentamiento = ttk.Button(frame_enfrentamientos, text="Borrar Enfrentamiento", command=borrar_enfrentamiento)
 btn_borrar_enfrentamiento.grid(row=6, column=0, columnspan=2, pady=5)
 
+btn_backup = ttk.Button(frame_enfrentamientos, text="Hacer Backup", command=hacer_backup_json)
+btn_backup.grid(row=7, column=0, columnspan=2, pady=10)
+
+btn_restaurar = ttk.Button(frame_enfrentamientos, text="Restaurar Backup", command=restaurar_backup_json)
+btn_restaurar.grid(row=8, column=0, columnspan=2, pady=5)
 
 ventana.mainloop()
