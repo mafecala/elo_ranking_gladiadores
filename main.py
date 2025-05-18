@@ -559,6 +559,54 @@ frame_botones_torneo.pack(pady=10)
 ttk.Button(frame_botones_torneo, text="Round Robin (Todos vs Todos)", command=generar_round_robin).grid(row=0, column=0, padx=5)
 ttk.Button(frame_botones_torneo, text="Eliminación Directa", command=generar_eliminacion_directa).grid(row=0, column=1, padx=5)
 
+import pandas as pd
+from tkinter import messagebox, filedialog
+
+def exportar_torneo_a_excel():
+    try:
+        import pandas as pd
+    except ImportError:
+        messagebox.showerror("Error", "Se requiere la biblioteca pandas. Instálala con 'pip install pandas openpyxl'")
+        return
+
+    ruta = filedialog.asksaveasfilename(
+        defaultextension=".xlsx",
+        filetypes=[("Archivo Excel", "*.xlsx")],
+        title="Guardar torneo como"
+    )
+
+    if not ruta:
+        return
+
+    try:
+        # Obtener enfrentamientos del Listbox
+        enfrentamientos = lista_enfrentamientos_torneo.get(0, tk.END)
+        if not enfrentamientos:
+            messagebox.showwarning("Sin datos", "No hay enfrentamientos para exportar.")
+            return
+        
+        # Obtener jugadores seleccionados
+        indices = lista_torneo_jugadores.curselection()
+        jugadores = [lista_torneo_jugadores.get(i) for i in indices]
+
+        # Crear DataFrame para enfrentamientos
+        df_enfrentamientos = pd.DataFrame({'Enfrentamiento': enfrentamientos})
+
+        # Crear DataFrame resumen de jugadores
+        df_jugadores = pd.DataFrame({'Jugadores Seleccionados': jugadores})
+
+        # Crear un ExcelWriter para múltiples hojas
+        with pd.ExcelWriter(ruta, engine='openpyxl') as writer:
+            df_jugadores.to_excel(writer, sheet_name='Jugadores Seleccionados', index=False)
+            df_enfrentamientos.to_excel(writer, sheet_name='Enfrentamientos', index=False)
+
+        messagebox.showinfo("Éxito", f"Datos del torneo exportados correctamente a:\n{ruta}")
+
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudieron exportar los datos:\n{str(e)}")
+
+ttk.Button(frame_botones_torneo, text="Exportar Torneo a Excel", command=exportar_torneo_a_excel).grid(row=0, column=3, padx=5)
+
 btn_crear_equipo = ttk.Button(frame_equipos, text="Crear Equipo", command=crear_equipo)
 btn_crear_equipo.grid(row=2, column=0, columnspan=2, pady=10)
 
