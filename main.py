@@ -11,7 +11,6 @@ def cargar_datos():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
-    actualizar_interfaz()
     return {"jugadores": {}, "equipos": {}, "historial": []}
 
 def guardar_datos():
