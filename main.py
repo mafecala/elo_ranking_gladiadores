@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import json
 import os
 import math
+import random
 
 DATA_FILE = "datos_ranking.json"
 
@@ -501,5 +502,73 @@ btn_restaurar.grid(row=8, column=0, columnspan=2, pady=5)
 
 btn_exportar_excel = ttk.Button(frame_enfrentamientos, text="Exportar a Excel", command=exportar_a_excel)
 btn_exportar_excel.grid(row=9, column=0, columnspan=2, pady=10)
+
+# ======================= PESTAÑA TORNEO =============================
+frame_torneo = ttk.Frame(pestanas)
+pestanas.add(frame_torneo, text="Torneo")
+
+ttk.Label(frame_torneo, text="Selecciona jugadores para el torneo:").pack(pady=5)
+lista_torneo_jugadores = tk.Listbox(frame_torneo, selectmode=tk.MULTIPLE, width=40, height=10)
+lista_torneo_jugadores.pack(pady=5)
+
+def actualizar_lista_torneo():
+    lista_torneo_jugadores.delete(0, tk.END)
+    for nombre in sorted(datos['jugadores'], key=lambda n: datos['jugadores'][n]['elo'], reverse=True):
+        lista_torneo_jugadores.insert(tk.END, nombre)
+
+actualizar_lista_torneo()
+
+ttk.Label(frame_torneo, text="Enfrentamientos generados:").pack(pady=5)
+lista_enfrentamientos_torneo = tk.Listbox(frame_torneo, width=80, height=15)
+lista_enfrentamientos_torneo.pack(pady=5)
+
+def generar_round_robin():
+    lista_enfrentamientos_torneo.delete(0, tk.END)
+    indices = lista_torneo_jugadores.curselection()
+    jugadores = [lista_torneo_jugadores.get(i) for i in indices]
+    if len(jugadores) < 2:
+        messagebox.showwarning("Advertencia", "Selecciona al menos 2 jugadores")
+        return
+    enfrentamientos = [(a, b) for i, a in enumerate(jugadores) for b in jugadores[i+1:]]
+    for j1, j2 in enfrentamientos:
+        lista_enfrentamientos_torneo.insert(tk.END, f"{j1} vs {j2}")
+
+def generar_eliminacion_directa():
+    lista_enfrentamientos_torneo.delete(0, tk.END)
+    indices = lista_torneo_jugadores.curselection()
+    jugadores = [lista_torneo_jugadores.get(i) for i in indices]
+    if len(jugadores) < 2 or (len(jugadores) & (len(jugadores) - 1)) != 0:
+        messagebox.showwarning("Advertencia", "Selecciona una cantidad de jugadores que sea potencia de 2 (2, 4, 8, 16...)")
+        return
+    random.shuffle(jugadores)
+    ronda = 1
+    while len(jugadores) > 1:
+        lista_enfrentamientos_torneo.insert(tk.END, f"--- Ronda {ronda} ---")
+        siguiente_ronda = []
+        for i in range(0, len(jugadores), 2):
+            j1, j2 = jugadores[i], jugadores[i+1]
+            lista_enfrentamientos_torneo.insert(tk.END, f"{j1} vs {j2}")
+            # No se elige un ganador, solo se muestra enfrentamiento
+            siguiente_ronda.append(f"Ganador({j1}/{j2})")  # marcador simbólico
+        jugadores = siguiente_ronda
+        ronda += 1
+
+frame_botones_torneo = ttk.Frame(frame_torneo)
+frame_botones_torneo.pack(pady=10)
+
+ttk.Button(frame_botones_torneo, text="Round Robin (Todos vs Todos)", command=generar_round_robin).grid(row=0, column=0, padx=5)
+ttk.Button(frame_botones_torneo, text="Eliminación Directa", command=generar_eliminacion_directa).grid(row=0, column=1, padx=5)
+
+btn_crear_equipo = ttk.Button(frame_equipos, text="Crear Equipo", command=crear_equipo)
+btn_crear_equipo.grid(row=2, column=0, columnspan=2, pady=10)
+
+btn_editar_equipo.config(command=editar_equipo)
+btn_editar_equipo.grid(row=4, column=0, pady=5)
+
+btn_borrar_equipo.config(command=borrar_equipo)
+btn_borrar_equipo.grid(row=4, column=1, pady=5)
+
+actualizar_lista_jugadores_equipo()
+actualizar_lista_equipos()
 
 ventana.mainloop()
