@@ -5,6 +5,7 @@ import os
 import math
 import random
 
+
 DATA_FILE = "datos_ranking.json"
 
 def cargar_datos():
@@ -83,31 +84,79 @@ def borrar_jugador():
         actualizar_lista_jugadores_equipo()
         actualizar_comboboxes()
 
-def editar_jugador():
+jugador_en_edicion = None 
+
+def preparar_edicion_jugador():
+    global jugador_en_edicion
+
     seleccion = lista_jugadores.curselection()
     if not seleccion:
+        messagebox.showwarning("Advertencia", "Selecciona un jugador para editar")
         return
+
     nombre = lista_jugadores.get(seleccion[0]).split(" - ")[0]
-    nuevo_nombre = entry_nombre.get()
+    jugador = datos['jugadores'][nombre]
+    jugador_en_edicion = nombre
+
+    # Rellenar los campos
+    entry_nombre.delete(0, tk.END)
+    entry_nombre.insert(0, nombre)
+    entry_arma.delete(0, tk.END)
+    entry_arma.insert(0, ', '.join(jugador['armas']))
+
+    # Mostrar botón de guardar cambios
+    btn_guardar_cambios_jugador.grid()
+
+def guardar_cambios_jugador():
+    global jugador_en_edicion
+
+    if not jugador_en_edicion:
+        return
+
+    nuevo_nombre = entry_nombre.get().strip()
     nuevas_armas = [a.strip() for a in entry_arma.get().split(',') if a.strip()]
+
     if nuevo_nombre and nuevas_armas:
-        jugador = datos['jugadores'].pop(nombre)
+        # Actualizar datos del jugador
+        jugador = datos['jugadores'].pop(jugador_en_edicion)
         jugador['armas'] = nuevas_armas
         datos['jugadores'][nuevo_nombre] = jugador
+
+        # Actualizar nombre en el historial
+        for entrada in datos['historial']:
+            if entrada['tipo'] == "Jugador":
+                if entrada['entidad1'] == jugador_en_edicion:
+                    entrada['entidad1'] = nuevo_nombre
+                if entrada['entidad2'] == jugador_en_edicion:
+                    entrada['entidad2'] = nuevo_nombre
+                if entrada['ganador'] == jugador_en_edicion:
+                    entrada['ganador'] = nuevo_nombre
+
         guardar_datos()
         actualizar_lista_jugadores()
         actualizar_lista_jugadores_equipo()
         actualizar_interfaz()
         actualizar_comboboxes()
+        actualizar_historial()
+
+        # Limpiar y ocultar botón
         entry_nombre.delete(0, tk.END)
         entry_arma.delete(0, tk.END)
+        btn_guardar_cambios_jugador.grid_remove()
+        jugador_en_edicion = None
+
+        messagebox.showinfo("Éxito", "¡Jugador actualizado!")
     else:
         messagebox.showwarning("Advertencia", "Completa todos los campos")
+btn_guardar_cambios_jugador = ttk.Button(frame_jugadores, text="Guardar cambios", command=guardar_cambios_jugador)
+btn_guardar_cambios_jugador.grid(row=5, column=0, columnspan=2, pady=5)
+btn_guardar_cambios_jugador.grid_remove()  # Oculto por defecto
+
 
 btn_crear_jugador = ttk.Button(frame_jugadores, text="Crear Jugador", command=crear_jugador)
 btn_crear_jugador.grid(row=2, column=0, columnspan=2, pady=10)
 
-btn_editar_jugador.config(command=editar_jugador)
+btn_editar_jugador.config(command=preparar_edicion_jugador)
 btn_editar_jugador.grid(row=4, column=0, pady=5)
 
 btn_borrar_jugador.config(command=borrar_jugador)
@@ -121,6 +170,8 @@ ttk.Label(frame_jugadores, text="Armas (separadas por coma):").grid(row=1, colum
 actualizar_lista_jugadores()
 
 # ======================= PESTAÑA EQUIPOS =============================
+equipo_en_edicion = None  
+
 frame_equipos = ttk.Frame(pestanas)
 pestanas.add(frame_equipos, text="Equipos")
 
@@ -136,6 +187,7 @@ lista_equipos.grid(row=3, column=0, columnspan=2, pady=10)
 
 btn_borrar_equipo = ttk.Button(frame_equipos, text="Borrar Equipo")
 btn_editar_equipo = ttk.Button(frame_equipos, text="Editar Equipo")
+btn_guardar_cambios = ttk.Button(frame_equipos, text="Guardar Cambios")  # Aparece solo si se edita
 
 def actualizar_lista_jugadores_equipo():
     lista_jugadores_equipo.delete(0, tk.END)
@@ -146,20 +198,22 @@ def actualizar_lista_equipos():
     lista_equipos.delete(0, tk.END)
     for nombre, info in sorted(datos['equipos'].items(), key=lambda item: item[1]['elo'], reverse=True):
         lista_equipos.insert(tk.END, f"{nombre} - ELO: {info['elo']} - Miembros: {', '.join(info['miembros'])}")
+    entry_equipo.delete(0, tk.END)
 
 def crear_equipo():
-    nombre_equipo = entry_equipo.get()
+    nombre_equipo = entry_equipo.get().strip()
     indices = lista_jugadores_equipo.curselection()
     miembros = [lista_jugadores_equipo.get(i) for i in indices]
     if nombre_equipo and miembros:
         if nombre_equipo in datos['equipos']:
-            messagebox.showerror("Error", "Equipo ya existe")
+            messagebox.showerror("Error", "Equipo ya existe 😕")
             return
         datos['equipos'][nombre_equipo] = {"elo": 1000, "miembros": miembros}
         guardar_datos()
         actualizar_lista_equipos()
         actualizar_comboboxes()
         entry_equipo.delete(0, tk.END)
+        lista_jugadores_equipo.selection_clear(0, tk.END)
     else:
         messagebox.showwarning("Advertencia", "Completa todos los campos y selecciona jugadores")
 
@@ -174,36 +228,95 @@ def borrar_equipo():
         actualizar_lista_equipos()
         actualizar_comboboxes()
 
-def editar_equipo():
+def preparar_edicion_equipo():
+    global equipo_en_edicion
+
     seleccion = lista_equipos.curselection()
     if not seleccion:
+        messagebox.showwarning("Advertencia", "Selecciona un equipo para editar")
         return
+
     nombre = lista_equipos.get(seleccion[0]).split(" - ")[0]
-    nuevo_nombre = entry_equipo.get()
+    equipo = datos['equipos'][nombre]
+    equipo_en_edicion = nombre
+
+    # Rellenar formulario
+    entry_equipo.delete(0, tk.END)
+    entry_equipo.insert(0, nombre)
+
+    lista_jugadores_equipo.selection_clear(0, tk.END)
+    for i in range(lista_jugadores_equipo.size()):
+        jugador = lista_jugadores_equipo.get(i)
+        if jugador in equipo['miembros']:
+            lista_jugadores_equipo.selection_set(i)
+
+    # Mostrar botón de guardar cambios
+    btn_guardar_cambios.grid(row=5, column=0, columnspan=2, pady=5)
+
+def guardar_cambios_equipo():
+    global equipo_en_edicion
+
+    if not equipo_en_edicion:
+        return
+
+    nuevo_nombre = entry_equipo.get().strip()
     indices = lista_jugadores_equipo.curselection()
     nuevos_miembros = [lista_jugadores_equipo.get(i) for i in indices]
-    if nuevo_nombre and nuevos_miembros:
-        equipo = datos['equipos'].pop(nombre)
-        equipo['miembros'] = nuevos_miembros
-        datos['equipos'][nuevo_nombre] = equipo
-        guardar_datos()
-        actualizar_lista_equipos()
-        actualizar_comboboxes()
-        entry_equipo.delete(0, tk.END)
-    else:
-        messagebox.showwarning("Advertencia", "Completa todos los campos y selecciona jugadores")
 
+    if not nuevo_nombre or not nuevos_miembros:
+        messagebox.showwarning("Advertencia", "Completa todos los campos y selecciona jugadores")
+        return
+
+    if nuevo_nombre != equipo_en_edicion and nuevo_nombre in datos['equipos']:
+        messagebox.showerror("Error", f"Ya existe un equipo con el nombre '{nuevo_nombre}'")
+        return
+
+    # Actualizar datos del equipo
+    equipo = datos['equipos'].pop(equipo_en_edicion)
+    equipo['miembros'] = nuevos_miembros
+    datos['equipos'][nuevo_nombre] = equipo
+
+    # ACTUALIZAR HISTORIAL 📝
+    for entrada in datos['historial']:
+        if entrada['tipo'] == "Equipo":
+            if entrada['entidad1'] == equipo_en_edicion:
+                entrada['entidad1'] = nuevo_nombre
+            if entrada['entidad2'] == equipo_en_edicion:
+                entrada['entidad2'] = nuevo_nombre
+            if entrada['ganador'] == equipo_en_edicion:
+                entrada['ganador'] = nuevo_nombre
+
+    guardar_datos()
+    actualizar_lista_equipos()
+    actualizar_comboboxes()
+    actualizar_historial()
+
+    # Limpiar y ocultar botón
+    entry_equipo.delete(0, tk.END)
+    lista_jugadores_equipo.selection_clear(0, tk.END)
+    btn_guardar_cambios.grid_remove()
+    equipo_en_edicion = None
+
+    messagebox.showinfo("Éxito", "¡Equipo actualizado!")
+
+
+# Botones
 btn_crear_equipo = ttk.Button(frame_equipos, text="Crear Equipo", command=crear_equipo)
 btn_crear_equipo.grid(row=2, column=0, columnspan=2, pady=10)
 
-btn_editar_equipo.config(command=editar_equipo)
+btn_editar_equipo.config(command=preparar_edicion_equipo)
 btn_editar_equipo.grid(row=4, column=0, pady=5)
 
 btn_borrar_equipo.config(command=borrar_equipo)
 btn_borrar_equipo.grid(row=4, column=1, pady=5)
 
+btn_guardar_cambios.config(command=guardar_cambios_equipo)
+btn_guardar_cambios.grid_remove()  # Inicialmente oculto
+
+# Cargar datos al iniciar
 actualizar_lista_jugadores_equipo()
 actualizar_lista_equipos()
+
 
 # ======================= PESTAÑA ENFRENTAMIENTOS =============================
 frame_enfrentamientos = ttk.Frame(pestanas)
@@ -533,7 +646,13 @@ ttk.Label(frame_torneo, text="Enfrentamientos generados:").pack(pady=5)
 lista_enfrentamientos_torneo = tk.Listbox(frame_torneo, width=80, height=15)
 lista_enfrentamientos_torneo.pack(pady=5)
 
+jugadores_torneo_actual = []  
+
 def generar_round_robin():
+    global jugadores_torneo_actual
+    indices = lista_torneo_jugadores.curselection()
+    jugadores = [lista_torneo_jugadores.get(i) for i in indices]
+
     lista_enfrentamientos_torneo.delete(0, tk.END)
     indices = lista_torneo_jugadores.curselection()
     jugadores = [lista_torneo_jugadores.get(i) for i in indices]
@@ -543,9 +662,14 @@ def generar_round_robin():
     enfrentamientos = [(a, b) for i, a in enumerate(jugadores) for b in jugadores[i+1:]]
     for j1, j2 in enfrentamientos:
         lista_enfrentamientos_torneo.insert(tk.END, f"{j1} vs {j2}")
+    jugadores_torneo_actual = jugadores
 
 def generar_eliminacion_directa():
+    global jugadores_torneo_actual
+    indices = lista_torneo_jugadores.curselection()
+    jugadores = [lista_torneo_jugadores.get(i) for i in indices]
     lista_enfrentamientos_torneo.delete(0, tk.END)
+
     indices = lista_torneo_jugadores.curselection()
     jugadores = [lista_torneo_jugadores.get(i) for i in indices]
     if len(jugadores) < 2 or (len(jugadores) & (len(jugadores) - 1)) != 0:
@@ -559,19 +683,11 @@ def generar_eliminacion_directa():
         for i in range(0, len(jugadores), 2):
             j1, j2 = jugadores[i], jugadores[i+1]
             lista_enfrentamientos_torneo.insert(tk.END, f"{j1} vs {j2}")
-            # No se elige un ganador, solo se muestra enfrentamiento
-            siguiente_ronda.append(f"Ganador({j1}/{j2})")  # marcador simbólico
+            siguiente_ronda.append(f"Ganador({j1}/{j2})")
         jugadores = siguiente_ronda
         ronda += 1
+    jugadores_torneo_actual = jugadores
 
-frame_botones_torneo = ttk.Frame(frame_torneo)
-frame_botones_torneo.pack(pady=10)
-
-ttk.Button(frame_botones_torneo, text="Round Robin (Todos vs Todos)", command=generar_round_robin).grid(row=0, column=0, padx=5)
-ttk.Button(frame_botones_torneo, text="Eliminación Directa", command=generar_eliminacion_directa).grid(row=0, column=1, padx=5)
-
-import pandas as pd
-from tkinter import messagebox, filedialog
 
 def exportar_torneo_a_excel():
     try:
@@ -596,19 +712,20 @@ def exportar_torneo_a_excel():
             messagebox.showwarning("Sin datos", "No hay enfrentamientos para exportar.")
             return
         
-        # Obtener jugadores seleccionados
-        indices = lista_torneo_jugadores.curselection()
-        jugadores = [lista_torneo_jugadores.get(i) for i in indices]
+        # usar los jugadores guardados del torneo generado
+        if not jugadores_torneo_actual:
+            messagebox.showwarning("Advertencia", "No hay datos del torneo para exportar.")
+            return
 
         # Crear DataFrame para enfrentamientos
         df_enfrentamientos = pd.DataFrame({'Enfrentamiento': enfrentamientos})
 
         # Crear DataFrame resumen de jugadores
-        df_jugadores = pd.DataFrame({'Jugadores Seleccionados': jugadores})
+        df_jugadores = pd.DataFrame({'Jugadores del Torneo': jugadores_torneo_actual})
 
         # Crear un ExcelWriter para múltiples hojas
         with pd.ExcelWriter(ruta, engine='openpyxl') as writer:
-            df_jugadores.to_excel(writer, sheet_name='Jugadores Seleccionados', index=False)
+            df_jugadores.to_excel(writer, sheet_name='Jugadores Torneo', index=False)
             df_enfrentamientos.to_excel(writer, sheet_name='Enfrentamientos', index=False)
 
         messagebox.showinfo("Éxito", f"Datos del torneo exportados correctamente a:\n{ruta}")
@@ -616,13 +733,17 @@ def exportar_torneo_a_excel():
     except Exception as e:
         messagebox.showerror("Error", f"No se pudieron exportar los datos:\n{str(e)}")
 
+
+frame_botones_torneo = ttk.Frame(frame_torneo)
+frame_botones_torneo.pack(pady=10)
+
+ttk.Button(frame_botones_torneo, text="Round Robin (Todos vs Todos)", command=generar_round_robin).grid(row=0, column=0, padx=5)
+ttk.Button(frame_botones_torneo, text="Eliminación Directa", command=generar_eliminacion_directa).grid(row=0, column=1, padx=5)
+
 ttk.Button(frame_botones_torneo, text="Exportar Torneo a Excel", command=exportar_torneo_a_excel).grid(row=0, column=3, padx=5)
 
 btn_crear_equipo = ttk.Button(frame_equipos, text="Crear Equipo", command=crear_equipo)
 btn_crear_equipo.grid(row=2, column=0, columnspan=2, pady=10)
-
-btn_editar_equipo.config(command=editar_equipo)
-btn_editar_equipo.grid(row=4, column=0, pady=5)
 
 btn_borrar_equipo.config(command=borrar_equipo)
 btn_borrar_equipo.grid(row=4, column=1, pady=5)
