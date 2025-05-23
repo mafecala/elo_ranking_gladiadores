@@ -206,7 +206,7 @@ def crear_equipo():
     miembros = [lista_jugadores_equipo.get(i) for i in indices]
     if nombre_equipo and miembros:
         if nombre_equipo in datos['equipos']:
-            messagebox.showerror("Error", "Equipo ya existe 😕")
+            messagebox.showerror("Error", "Equipo ya existe")
             return
         datos['equipos'][nombre_equipo] = {"elo": 1000, "miembros": miembros}
         guardar_datos()
@@ -276,7 +276,7 @@ def guardar_cambios_equipo():
     equipo['miembros'] = nuevos_miembros
     datos['equipos'][nuevo_nombre] = equipo
 
-    # ACTUALIZAR HISTORIAL 📝
+    # ACTUALIZAR HISTORIAL 
     for entrada in datos['historial']:
         if entrada['tipo'] == "Equipo":
             if entrada['entidad1'] == equipo_en_edicion:
@@ -392,7 +392,50 @@ lista_historial.grid(row=5, column=0, columnspan=2, pady=10)
 btn_borrar_enfrentamiento = ttk.Button(frame_enfrentamientos, text="Borrar Enfrentamiento")
 btn_borrar_enfrentamiento.grid(row=6, column=0, columnspan=2, pady=5)
 
-def registrar_enfrentamiento():
+def actualizar_ganador():
+    """Solo permite elegir como ganador a los dos jugadores seleccionados"""
+    opciones = []
+    if combo_1.get():
+        opciones.append(combo_1.get())
+    if combo_2.get() and combo_2.get() != combo_1.get():
+        opciones.append(combo_2.get())
+
+    combo_ganador['values'] = opciones
+    combo_ganador.set('')
+
+def actualizar_armas_jugador1():
+    jugador = combo_1.get()
+    arma_1.set('')
+    armas = datos['jugadores'].get(jugador, {}).get('armas', [])
+    arma_1['values'] = armas
+
+
+def actualizar_armas_jugador2():
+    jugador = combo_2.get()
+    arma_2.set('')
+    armas = datos['jugadores'].get(jugador, {}).get('armas', [])
+    arma_2['values'] = armas
+
+
+def al_cambiar_jugador1(event=None):
+    arma_1.set('')
+    actualizar_armas_jugador1()
+    actualizar_ganador()
+
+
+def al_cambiar_jugador2(event=None):
+    arma_2.set('')
+    actualizar_armas_jugador2()
+    actualizar_ganador()
+
+
+
+combo_1.bind("<<ComboboxSelected>>", al_cambiar_jugador1)
+combo_2.bind("<<ComboboxSelected>>", al_cambiar_jugador2)
+
+
+
+def registrar_enfrentamiento(): 
     tipo = modo_var.get()
     entidad1 = combo_1.get()
     entidad2 = combo_2.get()
@@ -412,11 +455,13 @@ def registrar_enfrentamiento():
         if not arma1 or not arma2:
             messagebox.showwarning("Advertencia", "Selecciona armas usadas por cada jugador")
             return
-        elo1, elo2 = datos['jugadores'][entidad1]['elo'], datos['jugadores'][entidad2]['elo']
+        elo1 = datos['jugadores'][entidad1]['elo']
+        elo2 = datos['jugadores'][entidad2]['elo']
         datos['jugadores'][entidad1]['elo'] = calcular_elo(elo1, elo2, resultado)
         datos['jugadores'][entidad2]['elo'] = calcular_elo(elo2, elo1, 1 - resultado)
     else:
-        elo1, elo2 = datos['equipos'][entidad1]['elo'], datos['equipos'][entidad2]['elo']
+        elo1 = datos['equipos'][entidad1]['elo']
+        elo2 = datos['equipos'][entidad2]['elo']
         datos['equipos'][entidad1]['elo'] = calcular_elo(elo1, elo2, resultado)
         datos['equipos'][entidad2]['elo'] = calcular_elo(elo2, elo1, 1 - resultado)
 
@@ -434,6 +479,7 @@ def registrar_enfrentamiento():
     actualizar_comboboxes()
     actualizar_historial()
     messagebox.showinfo("Éxito", "Enfrentamiento registrado")
+
 
 btn_registrar.config(command=registrar_enfrentamiento)
 
