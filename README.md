@@ -63,39 +63,6 @@ Este sistema es una aplicación de escritorio desarrollada en Python con Tkinter
 
 - Exportar toda la información a Excel (jugadores, equipos, historial)
 
-  
-
-##  Requisitos del sistema 💻
-
-- Python 3.x
-
-- Tkinter (incluido con la mayoría de las instalaciones de Python)
-
-- pandas y openpyxl (para exportación a Excel)
-
-  
-
-##  Instalación ⏬
-
-  
-
-1. Asegúrate de tener Python instalado
-
-2. Instala los paquetes necesarios:
-
-```
-
-pip install pandas openpyxl
-
-```
-
-3. Ejecuta el script:
-
-```
-
-python main.py
-
-```
 
 
 ##  Sistema de Puntuación ELO 🏆
