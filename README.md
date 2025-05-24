@@ -3,6 +3,16 @@
 ##  Autora🥝
 María Fernanda Cala
 
+##  Descarga el ejecutable 🌸
+
+Ve a esta sección en el repositorio
+![image](https://github.com/user-attachments/assets/28fa5714-68eb-4526-b0cb-4fcc12ae6fc6)
+
+Allí, descarga este .exe
+![image](https://github.com/user-attachments/assets/4c234ae6-cb59-48d0-8c6e-f99e140ccf31)
+
+Es altamente recomendable leer el instructivo antes de ejecutar el .exe
+
 ##  Descripción 🗒️
 
 Este sistema es una aplicación de escritorio desarrollada en Python con Tkinter que permite gestionar un ranking de jugadores y equipos utilizando el sistema de puntuación ELO. Puede mantener un registro de enfrentamientos, calcular automáticamente los rankings y organizar torneos entre los participantes. Está hecho teniendo en mente un ranking de softcombat.
